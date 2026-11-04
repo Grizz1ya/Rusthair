@@ -1,0 +1,35 @@
+{
+  "RT_GROUP_ICON": {
+    "#1": { "0000": "rusthair.png" }
+  },
+  "RT_MANIFEST": {
+    "#1": {
+      "0409": {
+        "identity": { "name": "Rusthair.Editor", "version": "1.1.0.0" },
+        "description": "Rusthair crosshair editor",
+        "minimum-os": "win10",
+        "execution-level": "as invoker",
+        "dpi-awareness": "per monitor v2",
+        "use-common-controls-v6": true
+      }
+    }
+  },
+  "RT_VERSION": {
+    "#1": {
+      "0000": {
+        "fixed": { "file_version": "1.1.0.0", "product_version": "1.1.0.0" },
+        "info": {
+          "0419": {
+            "FileDescription": "Мастерская прицелов Rusthair",
+            "Comments": "Создатель — витя гантрап",
+            "FileVersion": "1.1.0",
+            "InternalName": "Rusthair",
+            "OriginalFilename": "Rusthair.exe",
+            "ProductName": "Rusthair",
+            "ProductVersion": "1.1.0"
+          }
+        }
+      }
+    }
+  }
+}
