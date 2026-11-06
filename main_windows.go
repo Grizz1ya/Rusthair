@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"math"
@@ -11,12 +12,16 @@ import (
 )
 
 const (
-	editorClass = "Rusthair.Editor.1"
-	layerClass  = "Rusthair.Reticle.1"
-	mainStyle   = 0x00ca0000 // caption, system menu and minimize button
-	wmRefresh   = 0x8001
-	wmRestore   = 0x8002
-	saveTimer   = 1
+	editorClass    = "Rusthair.Editor.1"
+	layerClass     = "Rusthair.Reticle.1"
+	mainStyle      = 0x00ca0000 // caption, system menu and minimize button
+	wmRefresh      = 0x8001
+	wmRestore      = 0x8002
+	wmUpdateResult = 0x8003
+	wmTray         = 0x8004
+	saveTimer      = 1
+	updateTimer    = 2
+	trayRetryTimer = 3
 )
 
 var state settings
@@ -51,6 +56,7 @@ func changed() {
 	statusText = "Сохранение…"
 	user.NewProc("SetTimer").Call(mainWindow, saveTimer, 350, 0)
 	refreshOverlay()
+	updateTray()
 	repaint()
 }
 
@@ -69,7 +75,8 @@ func refreshOverlay() {
 	var editor rect
 	getWindowRect.Call(mainWindow, uintptr(unsafe.Pointer(&editor)))
 	minimized, _, _ := user.NewProc("IsIconic").Call(mainWindow)
-	if root == mainWindow && minimized == 0 && cx >= int(editor.L) && cx < int(editor.R) && cy >= int(editor.T) && cy < int(editor.B) {
+	visible, _, _ := user.NewProc("IsWindowVisible").Call(mainWindow)
+	if root == mainWindow && visible != 0 && minimized == 0 && cx >= int(editor.L) && cx < int(editor.R) && cy >= int(editor.T) && cy < int(editor.B) {
 		showWindow.Call(overlayWindow, 0)
 		return
 	}
@@ -169,7 +176,23 @@ func focusNext(backward bool) {
 	repaint()
 }
 func editorProcedure(hwnd, msg, wp, lp uintptr) uintptr {
+	if taskbarCreated != 0 && msg == taskbarCreated {
+		trayPresent = false
+		if !addTray() {
+			visible, _, _ := user.NewProc("IsWindowVisible").Call(hwnd)
+			if visible == 0 {
+				showWindow.Call(hwnd, 7)
+			}
+		}
+		return 0
+	}
 	switch msg {
+	case wmTray:
+		trayEvent(wp, lp)
+		return 0
+	case wmUpdateResult:
+		receiveUpdate()
+		return 0
 	case 0x0f:
 		paintEditor(hwnd)
 		return 0
@@ -290,20 +313,32 @@ func editorProcedure(hwnd, msg, wp, lp uintptr) uintptr {
 		}
 		return 0
 	case 0x113:
-		if wp == saveTimer {
+		switch wp {
+		case saveTimer:
 			user.NewProc("KillTimer").Call(hwnd, saveTimer)
 			flush()
 			repaint()
+		case updateTimer:
+			checkForUpdates()
+		case trayRetryTimer:
+			addTray()
 		}
 		return 0
 	case 0x11:
 		flush()
 		return 1
 	case 0x10:
-		user.NewProc("DestroyWindow").Call(hwnd)
+		hideToTray()
+		return 0
+	case 0x16: // WM_ENDSESSION, after Windows confirms sign-out/shutdown
+		if wp != 0 {
+			user.NewProc("DestroyWindow").Call(hwnd)
+		}
 		return 0
 	case 2:
 		flush()
+		removeTray()
+		user.NewProc("KillTimer").Call(hwnd, updateTimer)
 		if overlayWindow != 0 {
 			user.NewProc("DestroyWindow").Call(overlayWindow)
 			overlayWindow = 0
@@ -358,6 +393,9 @@ func registerShortcut(id uintptr, choices ...shortcut) string {
 }
 
 func run() error {
+	var cancel context.CancelFunc
+	updateContext, cancel = context.WithCancel(context.Background())
+	defer cancel()
 	atLogon := len(os.Args) == 2 && os.Args[1] == startupFlag
 	user.NewProc("SetProcessDpiAwarenessContext").Call(^uintptr(3)) // PER_MONITOR_AWARE_V2
 	mutex, _, mutexErr := kernel.NewProc("CreateMutexW").Call(0, 0, uintptr(unsafe.Pointer(str("Local\\Rusthair.Editor.1"))))
@@ -426,6 +464,8 @@ func run() error {
 	}
 	hotOverlay = registerShortcut(1, shortcut{'X', "X"}, shortcut{0x78, "F9"}, shortcut{0x76, "F7"})
 	hotMenu = registerShortcut(2, shortcut{'M', "M"}, shortcut{0x79, "F10"}, shortcut{0x77, "F8"})
+	trayIcon = icon
+	addTray()
 	if atLogon {
 		showWindow.Call(mainWindow, 7) // SW_SHOWMINNOACTIVE
 	} else {
@@ -433,6 +473,8 @@ func run() error {
 	}
 	user.NewProc("UpdateWindow").Call(mainWindow)
 	refreshOverlay()
+	checkForUpdates()
+	user.NewProc("SetTimer").Call(mainWindow, updateTimer, uintptr(updateInterval.Milliseconds()), 0)
 	var m message
 	for {
 		got, _, e := user.NewProc("GetMessageW").Call(uintptr(unsafe.Pointer(&m)), 0, 0, 0)

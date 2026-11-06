@@ -323,11 +323,9 @@ func (c canvas) footer() {
 	}
 	key(hotOverlay, "прицел", 65)
 	key(hotMenu, "меню", 55)
-	msg := statusText
-	if msg == "" {
-		msg = "Локальные настройки"
-	}
-	c.label(556, 591, 378, 28, msg, 12, 400, dim, 2, false)
+	c.label(532, 558, 402, 18, statusText, 11, 400, dim, 2, false)
+	c.mono(397, 591, 101, 28, "v"+appVersion, 13, muted)
+	c.button("updates", 506, 590, 428, 28, updateLabel(), updateAvailable())
 }
 
 func paintEditor(hwnd uintptr) {
@@ -398,6 +396,13 @@ func slideTo(id string, x int) bool {
 func activate(id string) {
 	r := &state.Styles[state.Selected]
 	switch id {
+	case "updates":
+		if updateAvailable() {
+			openRelease()
+		} else {
+			checkForUpdates()
+		}
+		return
 	case "creator":
 		const profile = "https://steamcommunity.com/id/misha_litvin/"
 		result, _, _ := openWithShell.Call(mainWindow, uintptr(unsafe.Pointer(str("open"))), uintptr(unsafe.Pointer(str(profile))), 0, 0, 1)

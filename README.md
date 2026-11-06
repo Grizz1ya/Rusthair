@@ -24,6 +24,10 @@ The arrows below the preview cycle through ten in-game screenshots. Click the sc
 2. Use the top-right switch to turn the sight on, then minimize the editor. Use a windowed or borderless game.
 3. Toggle the sight with **Ctrl+Alt+X** and bring the editor back with **Ctrl+Alt+M**. If another app owns a shortcut, the footer shows the combination Rusthair registered.
 
+Closing the editor with **×** hides it in the system tray while the sight stays active. Click the Rusthair tray icon to reopen the editor. Right-click it to toggle the sight, check releases or choose **Выход** (Exit) to stop the app completely.
+
+The footer shows your installed version. Rusthair checks the latest stable GitHub release at launch and every six hours. You can also check manually. When a newer release is available, an amber button opens its GitHub page. Windows may also show a tray notification. Download the new EXE from that page, exit Rusthair from its tray menu and replace the old file. Settings remain in your user profile.
+
 ![Display tab showing monitor selection, X and Y offsets and the startup switch, with an Arctic Research Base preview](docs/screenshots/display.png)
 
 **Автозапуск с Windows** starts the editor minimized when you sign in and restores your saved sight. The same switch is available in the header and the Display tab. Settings are stored in `%APPDATA%\Rusthair\settings.json`.
